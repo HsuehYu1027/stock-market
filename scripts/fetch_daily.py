@@ -97,7 +97,15 @@ def main() -> int:
         "warnings": warnings,
         "market": summary,
         "groups": groups,
-        "turnover_ranking": metrics.turnover_ranking(quotes, limit=100),
+        # 全量個股 —— 前端的搜尋與成交值排名都由這份算出來。
+        # 用陣列式（無鍵名）存，因為 1963 檔若用完整 dict 會讓檔案暴增到
+        # 419KB；陣列式只有約 120KB。沒有鍵名就沒人看得懂欄位順序，
+        # 所以 schema 一起寫進資料裡。
+        "stocks_schema": [
+            "code", "name", "market", "close",
+            "change", "pct", "volume_shares", "turnover",
+        ],
+        "stocks": metrics.compact_stocks(quotes),
         # 清單裡打錯的代號、已下市或當日完全無成交的個股都會出現在這裡，
         # 不會被靜靜忽略掉。
         "missing": missing,

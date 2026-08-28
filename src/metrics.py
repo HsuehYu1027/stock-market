@@ -87,17 +87,6 @@ def build_group_table(
     return table
 
 
-def turnover_ranking(quotes: list[Quote], limit: int = 100) -> list[dict]:
-    """成交值排名 — 依成交金額（非成交股數），上市上櫃合併，欄位標明市場別。"""
-    ranked = sorted(quotes, key=lambda q: q.turnover, reverse=True)[:limit]
-    rows = []
-    for rank, quote in enumerate(ranked, start=1):
-        row = quote.to_dict()
-        row["rank"] = rank
-        rows.append(row)
-    return rows
-
-
 def market_summary(quotes: list[Quote]) -> dict:
     rated = _rated(quotes)
     advancing = sum(1 for q in rated if q.pct > 0)
@@ -109,3 +98,32 @@ def market_summary(quotes: list[Quote]) -> dict:
         "declining": declining,
         "unchanged": len(rated) - advancing - declining,
     }
+
+
+# 市場別在 compact_stocks 中以整數編碼，省掉 1963 次重複的字串
+MARKET_CODES = {"上市": 0, "上櫃": 1}
+
+
+def compact_stocks(quotes: list[Quote]) -> list[list]:
+    """全量個股的精簡表示，欄位順序見輸出 JSON 的 stocks_schema。
+
+    這是前端搜尋「與」成交值排名的唯一資料來源。之所以不另外輸出一份
+    前 100 名清單：那樣在切到「只看上櫃」時，前端只能從全市場前 100 名裡
+    篩，得到的是「前 100 名之中的上櫃股」而不是「上櫃前 100 名」。
+    由全量資料在前端排序才會是正確的排名，也少存一份重複資料。
+
+    不含開高低與成交筆數（頁面沒有用到）。已依成交值排序。
+    """
+    return [
+        [
+            q.code,
+            q.name,
+            MARKET_CODES.get(q.market, -1),
+            round(q.close, 2),
+            round(q.change, 2),
+            round(q.pct, 2) if q.pct is not None else None,
+            q.volume_shares,
+            q.turnover,
+        ]
+        for q in sorted(quotes, key=lambda q: q.turnover, reverse=True)
+    ]

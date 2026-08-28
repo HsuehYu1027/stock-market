@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>台股族群分析</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Crect x='2' y='8' width='3' height='6' fill='%2312a150'/%3E%3Crect x='6.5' y='4' width='3' height='10' fill='%23d92b2b'/%3E%3Crect x='11' y='6' width='3' height='8' fill='%23d92b2b'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23111'/%3E%3Crect x='2' y='8' width='3' height='6' fill='%2300693c'/%3E%3Crect x='6.5' y='4' width='3' height='10' fill='%23ee5a5f'/%3E%3Crect x='11' y='6' width='3' height='8' fill='%23ee5a5f'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,7 +12,11 @@
   <div class="topbar-main">
     <h1>台股族群分析</h1>
     <div class="meta">
-      <span id="data-date" class="date">載入中…</span>
+      <label class="date-pick">
+        <span class="sr-only">資料日期</span>
+        <select id="date-select"></select>
+      </label>
+      <span id="fetched-at" class="fetched"></span>
       <span id="stale-flag" class="stale hidden"></span>
     </div>
   </div>
@@ -22,12 +26,57 @@
 <main id="content" hidden>
   <div id="warnings" class="warnings hidden"></div>
 
+  <!-- 控制列：搜尋與篩選集中在一行，放在所有圖表與表格之上 -->
+  <div class="controls">
+    <div class="search-wrap">
+      <input id="search" type="search" autocomplete="off"
+             placeholder="搜尋代號或名稱（例如 2330、台積電）">
+      <button id="search-clear" class="clear hidden" aria-label="清除搜尋">×</button>
+    </div>
+    <div class="seg" role="group" aria-label="市場篩選">
+      <button class="seg-btn active" data-market="all">全部</button>
+      <button class="seg-btn" data-market="0">上市</button>
+      <button class="seg-btn" data-market="1">上櫃</button>
+    </div>
+    <button id="toggle-all" class="ghost">全部展開</button>
+  </div>
+
+  <!-- 搜尋結果：只有在有查詢字串時出現 -->
+  <section id="search-panel" class="panel hidden">
+    <h2 class="panel-head static">搜尋結果 <small id="search-count"></small></h2>
+    <div class="panel-body">
+      <div class="table-scroll">
+        <table id="search-table">
+          <thead><tr>
+            <th>代號</th><th class="col-name">名稱</th><th>市場</th>
+            <th class="num">收盤</th><th class="num">漲跌幅</th>
+            <th class="num">成交值(億)</th><th>所屬族群</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="search-empty" class="note hidden">查無符合的個股。</p>
+    </div>
+  </section>
+
   <section class="panel">
     <h2 class="panel-head" data-toggle="groups">
       <span class="caret"></span>族群表現排名
       <small>四種指標並列 — 點欄位標題可切換排序</small>
     </h2>
     <div class="panel-body" id="groups">
+      <figure class="chart">
+        <figcaption>
+          族群漲跌幅
+          <span class="legend">
+            <span class="key"><i class="swatch bar-up"></i>等權平均</span>
+            <span class="key"><i class="swatch tick"></i>中位數</span>
+          </span>
+        </figcaption>
+        <div id="chart-perf"></div>
+        <p class="note">長條是等權平均、細刻度是中位數。兩者差距大＝族群內部分歧，通常是少數幾檔在帶動。</p>
+      </figure>
+
       <div class="table-scroll">
         <table id="group-table">
           <thead>
@@ -38,7 +87,7 @@
               <th class="num sortable" data-sort="value_weighted_pct">成交值加權<small>大單邊主導</small></th>
               <th class="num sortable" data-sort="median_pct">中位數<small>抗單檔干擾</small></th>
               <th class="num sortable" data-sort="advance_ratio">上漲家數比<small>參與廣度</small></th>
-              <th class="num sortable" data-sort="turnover">成交值<small>億元</small></th>
+              <th class="num sortable opt" data-sort="turnover">成交值<small>億元</small></th>
               <th class="num sortable" data-sort="turnover_share">市場佔比<small>vs 5日均</small></th>
             </tr>
           </thead>
@@ -46,6 +95,11 @@
         </table>
       </div>
       <p class="note">指標互相背離本身就是訊號：加權遠高於中位數 ＝ 只有龍頭在漲；等權為正但上漲家數比偏低 ＝ 少數幾檔撐盤。</p>
+
+      <figure class="chart">
+        <figcaption>族群成交值佔全市場比重</figcaption>
+        <div id="chart-share"></div>
+      </figure>
     </div>
   </section>
 
@@ -60,14 +114,14 @@
           <thead>
             <tr>
               <th class="col-rank">#</th><th>代號</th><th class="col-name">名稱</th>
-              <th>市場</th><th class="num">收盤</th><th class="num">漲跌</th>
-              <th class="num">漲跌幅</th><th class="num">成交值(億)</th><th class="num">成交張數</th>
+              <th class="opt">市場</th><th class="num">收盤</th><th class="num opt">漲跌</th>
+              <th class="num">漲跌幅</th><th class="num">成交值(億)</th><th class="num opt">成交張數</th>
             </tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
-      <button id="show-more" class="more">顯示前 100 名</button>
+      <button id="show-more" class="ghost">顯示前 100 名</button>
     </div>
   </section>
 
@@ -89,6 +143,7 @@
 </main>
 
 <div id="error" class="error hidden"></div>
+<div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
 
 <footer>
   資料來源：臺灣證券交易所、證券櫃檯買賣中心公開資料。僅供個人研究參考，不構成投資建議。

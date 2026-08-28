@@ -1,7 +1,18 @@
-/* 台股慣例：紅漲綠跌（與歐美相反）。顏色只在這裡定義一次。 */
+/* ============================================================================
+   台股慣例紅漲綠跌（與歐美相反）。顏色只在這裡定義一次。
+
+   配色經 dataviz 驗證器實測挑選：
+     淺色 #ee5a5f / #00693c —— 六項檢查全數通過（色盲分離度 ΔE 9.0）
+     深色 #d94a4a / #4ade80 —— 色盲分離度 ΔE 18.1
+   深色版刻意讓綠比紅亮而超出明度帶寬：帶寬（0.48–0.67）與色盲分離度在
+   紅綠配色上直接衝突，要讓紅綠色盲分辨得出來就必須拉開明度差。明度帶寬
+   是「類別型配色」的準則，這裡是漲跌兩極的狀態色，分離度才是關鍵。
+   此外漲跌永遠另有兩層冗餘編碼：數字的 +/- 符號、長條圖的左右方向，
+   資訊從不只靠顏色傳達。
+   ========================================================================= */
 :root {
-  --up: #d92b2b;
-  --down: #12a150;
+  --up: #ee5a5f;
+  --down: #00693c;
   --flat: #8b8b8b;
   --bg: #f6f7f9;
   --panel: #ffffff;
@@ -9,12 +20,15 @@
   --muted: #6b7280;
   --line: #e3e6ea;
   --accent: #2b5fd9;
+  --grid: #eceff3;
+  --neutral-bar: #9aa3af;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --up: #ff5f56; --down: #2ecc71; --flat: #9aa0a6;
+    --up: #d94a4a; --down: #4ade80; --flat: #9aa0a6;
     --bg: #14161a; --panel: #1c1f24; --ink: #e8eaed;
     --muted: #9aa0a6; --line: #2c3036; --accent: #6f9bff;
+    --grid: #262a30; --neutral-bar: #5b636e;
   }
 }
 
@@ -24,26 +38,76 @@ body {
   font: 15px/1.5 -apple-system, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
-
-.topbar {
-  position: sticky; top: 0; z-index: 10;
-  background: var(--panel); border-bottom: 1px solid var(--line);
-  padding: 14px 20px; display: flex; flex-wrap: wrap;
-  align-items: baseline; gap: 8px 24px;
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
 }
-.topbar h1 { margin: 0; font-size: 19px; letter-spacing: .5px; }
-.topbar-main { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
-.meta { display: flex; gap: 10px; align-items: baseline; }
-.date { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 14px; }
+
+/* ---------- 表頭 ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  padding: 12px 20px; display: flex; flex-wrap: wrap;
+  align-items: center; gap: 8px 24px;
+}
+.topbar h1 { margin: 0; font-size: 19px; letter-spacing: .5px; white-space: nowrap; }
+.topbar-main { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.meta { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.date-pick select {
+  font: inherit; font-size: 14px; padding: 3px 8px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.fetched { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
 .stale {
   background: var(--up); color: #fff; padding: 2px 8px;
-  border-radius: 4px; font-size: 12px; font-weight: 600;
+  border-radius: 4px; font-size: 12px; font-weight: 600; white-space: nowrap;
 }
-.market-summary { margin-left: auto; display: flex; gap: 18px; font-size: 13px; color: var(--muted); }
+/* 摘要用 grid 而非 flex，窄螢幕整齊換行而不會把「全市場」拆成兩行 */
+.market-summary {
+  margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px 18px;
+  font-size: 13px; color: var(--muted);
+}
+.market-summary span { white-space: nowrap; }
 .market-summary b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.market-summary b.up { color: var(--up); }
+.market-summary b.down { color: var(--down); }
 
-main { max-width: 1200px; margin: 0 auto; padding: 20px; }
+main { max-width: 1200px; margin: 0 auto; padding: 18px 20px 0; }
 
+/* ---------- 控制列 ---------- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  margin-bottom: 16px;
+}
+.search-wrap { position: relative; flex: 1 1 280px; min-width: 220px; }
+.search-wrap input {
+  width: 100%; font: inherit; font-size: 14px; padding: 8px 32px 8px 12px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--ink);
+}
+.search-wrap input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; color: var(--muted); cursor: pointer;
+  font-size: 20px; line-height: 1; padding: 0 6px;
+}
+.seg { display: flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg-btn {
+  font: inherit; font-size: 13px; padding: 7px 14px; border: none;
+  background: var(--panel); color: var(--muted); cursor: pointer;
+  border-right: 1px solid var(--line);
+}
+.seg-btn:last-child { border-right: none; }
+.seg-btn.active { background: var(--accent); color: #fff; }
+.ghost {
+  font: inherit; font-size: 13px; padding: 7px 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--panel); color: var(--accent);
+}
+.ghost:hover { background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+
+/* ---------- 面板 ---------- */
 .panel {
   background: var(--panel); border: 1px solid var(--line);
   border-radius: 10px; margin-bottom: 18px; overflow: hidden;
@@ -52,7 +116,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
   margin: 0; padding: 14px 18px; font-size: 16px; cursor: pointer;
   display: flex; align-items: baseline; gap: 10px; user-select: none;
 }
-.panel-head:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.panel-head.static { cursor: default; }
+.panel-head:not(.static):hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .panel-head small { color: var(--muted); font-weight: 400; font-size: 12px; }
 .caret {
   width: 0; height: 0; border-left: 6px solid currentColor;
@@ -63,6 +128,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 .panel.collapsed .panel-body { display: none; }
 .panel-body { padding: 0 18px 16px; }
 
+/* ---------- 表格 ---------- */
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { padding: 7px 10px; text-align: left; white-space: nowrap; }
@@ -77,23 +143,53 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); 
 .col-rank { width: 40px; color: var(--muted); }
 .col-name { font-weight: 600; }
 .sortable { cursor: pointer; }
-.sortable:hover { color: var(--accent); }
-.sortable.active { color: var(--accent); }
+.sortable:hover, .sortable.active { color: var(--accent); }
 .sortable.active::after { content: " ▼"; font-size: 9px; }
 
 .up { color: var(--up); }
 .down { color: var(--down); }
 .flat { color: var(--flat); }
-
 .pending { color: var(--muted); font-size: 12px; font-style: italic; }
 .sub { display: block; font-size: 11px; color: var(--muted); }
 .note { color: var(--muted); font-size: 12px; margin: 12px 2px 0; }
+.tags { font-size: 12px; color: var(--accent); }
 
+/* ---------- 圖表 ---------- */
+.chart { margin: 4px 0 20px; }
+.chart figcaption {
+  font-size: 13px; color: var(--muted); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.legend { display: flex; gap: 12px; }
+.key { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.swatch { width: 12px; height: 8px; border-radius: 2px; display: inline-block; }
+.swatch.bar-up { background: var(--up); }
+.swatch.tick { width: 2px; height: 12px; border-radius: 0; background: var(--ink); }
+.chart svg { display: block; width: 100%; height: auto; }
+.chart .grid-line { stroke: var(--grid); stroke-width: 1; }
+.chart .zero-line { stroke: var(--muted); stroke-width: 1; }
+.chart .axis-label { fill: var(--muted); font-size: 11px; }
+.chart .bar-label { fill: var(--ink); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.chart .cat-label { fill: var(--ink); font-size: 12px; }
+.chart .median-tick { stroke: var(--ink); stroke-width: 2; }
+.chart .hit { fill: transparent; cursor: pointer; }
+.chart .row:hover .hit { fill: color-mix(in srgb, var(--accent) 7%, transparent); }
+
+.tooltip {
+  position: fixed; z-index: 50; pointer-events: none; opacity: 0;
+  transition: opacity .1s; background: var(--ink); color: var(--panel);
+  padding: 7px 10px; border-radius: 6px; font-size: 12.5px;
+  line-height: 1.45; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.22);
+}
+.tooltip.on { opacity: 1; }
+.tooltip b { font-variant-numeric: tabular-nums; }
+
+/* ---------- 族群明細 ---------- */
 .group-block { border-top: 1px solid var(--line); }
 .group-block:first-child { border-top: none; }
 .group-title {
   padding: 11px 2px; cursor: pointer; display: flex;
-  align-items: center; gap: 10px; user-select: none;
+  align-items: center; gap: 10px; user-select: none; flex-wrap: wrap;
 }
 .group-title:hover { color: var(--accent); }
 .group-title .nm { font-weight: 600; min-width: 90px; }
@@ -103,13 +199,6 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); 
 .group-block.collapsed .group-detail { display: none; }
 .group-detail { padding-bottom: 12px; }
 
-.more {
-  margin-top: 12px; background: none; border: 1px solid var(--line);
-  color: var(--accent); padding: 7px 16px; border-radius: 6px;
-  cursor: pointer; font-size: 13px; font-family: inherit;
-}
-.more:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
-
 .warnings, .error {
   background: color-mix(in srgb, var(--up) 12%, var(--panel));
   border: 1px solid var(--up); border-radius: 8px;
@@ -117,10 +206,49 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); 
 }
 .error { margin: 20px; }
 #missing .grp { margin: 6px 0; font-size: 13px; }
-#missing .grp b { font-weight: 600; }
 
 .hidden { display: none !important; }
 footer {
   max-width: 1200px; margin: 0 auto; padding: 8px 20px 40px;
   color: var(--muted); font-size: 12px;
+}
+
+/* ============================================================================
+   窄螢幕：目標是堪用。做兩件事 ——
+   1. 第一欄 sticky，橫向捲動時不會失去「這是哪一檔」的脈絡
+   2. 隱藏標了 .opt 的次要欄位（成交張數、市場、漲跌絕對值），
+      讓漲跌幅與成交值這兩個真正要看的欄位留在畫面內
+   ========================================================================= */
+@media (max-width: 760px) {
+  main { padding: 14px 12px 0; }
+  .panel-body { padding: 0 12px 14px; }
+  .topbar { padding: 10px 12px; }
+  .market-summary { margin-left: 0; width: 100%; font-size: 12.5px; }
+  .topbar h1 { font-size: 17px; }
+
+  th, td { padding: 7px 7px; }
+  .opt { display: none; }
+
+  /* 名稱欄固定在左側，捲動時仍看得到是哪一檔 */
+  #ranking-table td:nth-child(3), #ranking-table th:nth-child(3),
+  #group-table  td:nth-child(2), #group-table  th:nth-child(2),
+  #search-table td:nth-child(2), #search-table th:nth-child(2) {
+    position: sticky; left: 0; z-index: 1;
+    background: var(--panel);
+    box-shadow: 1px 0 0 var(--line);
+  }
+  tbody tr:hover td:nth-child(2) { background: var(--panel); }
+
+  .chart .cat-label { font-size: 11px; }
+  .controls { gap: 8px; }
+  .seg-btn, .ghost { padding: 7px 11px; font-size: 12.5px; }
+}
+
+/* 極窄螢幕：再收緊一級，讓成交值排名的所有欄位剛好放得下（實測差 45px） */
+@media (max-width: 430px) {
+  body { font-size: 14px; }
+  th, td { padding: 6px 5px; }
+  thead th { font-size: 11px; }
+  .panel-body { padding: 0 8px 12px; }
+  main { padding: 12px 8px 0; }
 }
