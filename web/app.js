@@ -273,7 +273,14 @@ function wire() {
 }
 
 /* ---------- 進入點 ---------- */
-fetch('../data/latest.json', { cache: 'no-store' })
+/* 本機是從 repo 根目錄啟服務、走 /web/，資料在上一層；
+   GitHub Pages 部署時 web/ 的內容已在站台根目錄，資料就在同層的 data/。
+   依所在路徑判斷，兩種情境都不會產生失敗請求。 */
+var DATA_URL = location.pathname.indexOf('/web/') !== -1
+  ? '../data/latest.json'
+  : 'data/latest.json';
+
+fetch(DATA_URL, { cache: 'no-store' })
   .then(function (r) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     return r.json();
@@ -289,7 +296,7 @@ fetch('../data/latest.json', { cache: 'no-store' })
   })
   .catch(function (err) {
     var box = document.getElementById('error');
-    box.textContent = '讀取 data/latest.json 失敗：' + err.message +
+    box.textContent = '讀取 ' + DATA_URL + ' 失敗：' + err.message +
       '。請先執行 python3 scripts/fetch_daily.py 產生資料，並以 HTTP server 開啟本頁（不要用 file://）。';
     box.classList.remove('hidden');
     document.getElementById('data-date').textContent = '無資料';

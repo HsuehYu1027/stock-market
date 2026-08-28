@@ -24,6 +24,39 @@ python3 -m http.server 8000         # 於專案根目錄執行
 
 其他旗標：`--force`（日期未更新時仍覆寫）、`--dry-run`（只印摘要不寫檔）。
 
+## 自動更新
+
+`.github/workflows/daily.yml` 每個交易日盤後自動抓取、commit 新資料，並重新發布頁面。
+排程時間（cron 為 UTC）：
+
+| 台北時間 | 用途 |
+|---|---|
+| 15:30 | 正常抓取（13:30 收盤，盤後資料約 14:00–15:00 到齊） |
+| 18:00 | 補跑，官方資料延遲時的第二次機會 |
+
+補跑之所以安全，是因為 `fetch_daily.py` 本身是冪等的：資料日期沒變就不覆寫（exit 2）。
+GitHub 的排程在尖峰可能延遲數十分鐘，這個設計讓延遲無害。
+
+workflow 對三種結束代碼的處理不同：
+
+| 代碼 | 情境 | 行為 |
+|---|---|---|
+| 0 | 有新資料 | commit 並發布 |
+| 2 | 非交易日／盤後未更新 | 視為成功，不 commit（否則假日會天天寄失敗信） |
+| 1 | 兩來源都抓不到 | 讓 workflow 失敗，你會收到 GitHub 通知 |
+
+也可以在 Actions 頁面用 **Run workflow** 手動觸發。
+
+### 首次啟用需要的兩個設定
+
+1. **預設分支設為 `main`** — repo 上方 Settings → 左側 General → 往下捲到 Default branch
+   → 點 **⇄** → 選 `main` → Update。
+   （Actions 的排程只會從預設分支觸發。左側選單的「Branches」是設分支保護規則的地方，不是這裡。）
+2. **啟用 Pages** — Settings → Pages → Source 選 **GitHub Actions**。
+
+啟用後網址為 `https://hsuehyu1027.github.io/stock-market/`。
+
+
 ## 維護族群清單
 
 族群定義只在 `config/groups.yaml`，程式碼不寫死任何族群或成分股。

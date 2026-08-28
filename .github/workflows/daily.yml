@@ -1,0 +1,87 @@
+name: 每日抓取台股資料並發布
+
+on:
+  schedule:
+    # cron 一律為 UTC。台股 13:30 收盤，盤後資料約 14:00–15:00 到齊。
+    - cron: '30 7 * * 1-5'   # 15:30 台北 — 正常抓取
+    - cron: '0 10 * * 1-5'   # 18:00 台北 — 補跑，官方資料延遲時的第二次機會
+  push:
+    branches: [main]         # 改了 web/ 也要重新發布頁面
+  workflow_dispatch:         # 允許手動觸發
+
+permissions:
+  contents: write            # 要把新的 data/*.json commit 回 repo
+  pages: write
+  id-token: write
+
+# 兩次排程若重疊不要互踩；但也不要取消進行中的部署。
+concurrency:
+  group: daily-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: 抓取當日資料
+        id: fetch
+        run: |
+          set +e
+          python3 scripts/fetch_daily.py
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          # fetch_daily.py 的結束代碼在 CI 裡意義不同：
+          #   0 有新資料 / 2 非交易日或盤後未更新（正常，不該報錯） / 1 兩來源都掛了
+          case $code in
+            0) echo "✅ 產出新資料" ;;
+            2) echo "ℹ️ 非交易日或盤後資料尚未更新，保留既有資料" ;;
+            *) echo "::error::抓取失敗（結束代碼 $code）"; exit 1 ;;
+          esac
+
+      - name: 有變動才 commit
+        if: steps.fetch.outputs.exit_code == '0'
+        run: |
+          if git diff --quiet -- data/; then
+            echo "資料無變動，不建立 commit。"
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git commit -m "資料更新 $(python3 -c "import json;print(json.load(open('data/latest.json'))['date'])")"
+          git push
+
+  deploy:
+    needs: fetch
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # fetch job 可能剛推了新的 data commit，這裡要重新 checkout 才拿得到。
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: 組出站台內容
+        run: |
+          mkdir -p _site
+          cp web/* _site/
+          cp -r data _site/data
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
