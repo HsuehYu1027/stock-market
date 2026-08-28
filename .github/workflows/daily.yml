@@ -76,7 +76,7 @@ jobs:
       - name: 組出站台內容
         run: |
           mkdir -p _site
-          cp web/* _site/
+          cp -r web/. _site/
           cp -r data _site/data
 
       - uses: actions/configure-pages@v5
