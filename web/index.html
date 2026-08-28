@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>台股族群分析</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-main">
+    <h1>台股族群分析</h1>
+    <div class="meta">
+      <span id="data-date" class="date">載入中…</span>
+      <span id="stale-flag" class="stale hidden"></span>
+    </div>
+  </div>
+  <div id="market-summary" class="market-summary"></div>
+</header>
+
+<main id="content" hidden>
+  <div id="warnings" class="warnings hidden"></div>
+
+  <section class="panel">
+    <h2 class="panel-head" data-toggle="groups">
+      <span class="caret"></span>族群表現排名
+      <small>四種指標並列 — 點欄位標題可切換排序</small>
+    </h2>
+    <div class="panel-body" id="groups">
+      <div class="table-scroll">
+        <table id="group-table">
+          <thead>
+            <tr>
+              <th class="col-rank">#</th>
+              <th class="col-name">族群</th>
+              <th class="num sortable" data-sort="equal_weight_pct">等權平均<small>族群內每檔等重</small></th>
+              <th class="num sortable" data-sort="value_weighted_pct">成交值加權<small>大單邊主導</small></th>
+              <th class="num sortable" data-sort="median_pct">中位數<small>抗單檔干擾</small></th>
+              <th class="num sortable" data-sort="advance_ratio">上漲家數比<small>參與廣度</small></th>
+              <th class="num sortable" data-sort="turnover">成交值<small>億元</small></th>
+              <th class="num sortable" data-sort="turnover_share">市場佔比<small>vs 5日均</small></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note">指標互相背離本身就是訊號：加權遠高於中位數 ＝ 只有龍頭在漲；等權為正但上漲家數比偏低 ＝ 少數幾檔撐盤。</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-head" data-toggle="ranking">
+      <span class="caret"></span>成交值排名
+      <small>依成交金額，上市上櫃合併</small>
+    </h2>
+    <div class="panel-body" id="ranking">
+      <div class="table-scroll">
+        <table id="ranking-table">
+          <thead>
+            <tr>
+              <th class="col-rank">#</th><th>代號</th><th class="col-name">名稱</th>
+              <th>市場</th><th class="num">收盤</th><th class="num">漲跌</th>
+              <th class="num">漲跌幅</th><th class="num">成交值(億)</th><th class="num">成交張數</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button id="show-more" class="more">顯示前 100 名</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2 class="panel-head" data-toggle="detail">
+      <span class="caret"></span>族群成分股明細
+      <small>點族群展開</small>
+    </h2>
+    <div class="panel-body" id="detail"></div>
+  </section>
+
+  <section id="missing-panel" class="panel hidden">
+    <h2 class="panel-head" data-toggle="missing">
+      <span class="caret"></span>成分股當日查無資料
+      <small>代號錯誤／已下市／全日無成交</small>
+    </h2>
+    <div class="panel-body" id="missing"></div>
+  </section>
+</main>
+
+<div id="error" class="error hidden"></div>
+
+<footer>
+  資料來源：臺灣證券交易所、證券櫃檯買賣中心公開資料。僅供個人研究參考，不構成投資建議。
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
