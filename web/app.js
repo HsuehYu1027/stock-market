@@ -19,6 +19,7 @@ var state = {
   market: 'all',      // 'all' | '0' | '1'
   query: '',
   groupOf: {},        // 代號 -> [族群名]，由 groups[].constituents 反查建立
+  blockId: {},        // 族群名 -> 明細區塊的 DOM id（族群名含中文，用索引當 id 較安全）
   allExpanded: false
 };
 
@@ -156,8 +157,11 @@ function renderPerfChart() {
     val.textContent = pct(v);
     grp.appendChild(val);
 
+    grp.classList.add('jump');
+    grp.addEventListener('click', function () { focusGroup(g.name); });
     bindTip(grp, function () {
       return '<b>' + g.name + '</b><br>等權平均 <b>' + pct(g.equal_weight_pct) + '</b>' +
+             '<br><span style="opacity:.7">點一下看成分股</span>' +
              '<br>中位數 <b>' + pct(g.median_pct) + '</b>' +
              '<br>成交值加權 <b>' + pct(g.value_weighted_pct) + '</b>' +
              '<br>上漲 <b>' + g.advancing + '</b> / 下跌 <b>' + g.declining + '</b>';
@@ -236,7 +240,9 @@ function renderGroups() {
     var tr = document.createElement('tr');
     tr.appendChild(td(String(i + 1), 'col-rank'));
 
-    var nameCell = td(g.name, 'col-name');
+    var nameCell = td(g.name, 'col-name jump');
+    nameCell.title = '跳到「' + g.name + '」成分股明細';
+    nameCell.addEventListener('click', function () { focusGroup(g.name); });
     var sub = el('span', 'sub', g.rated_count + ' 檔 · 漲 ' + g.advancing + ' 跌 ' + g.declining);
     nameCell.appendChild(sub);
     tr.appendChild(nameCell);
@@ -355,6 +361,26 @@ function renderSearch() {
   document.getElementById('search-clear').classList.toggle('hidden', !state.query);
 }
 
+/* ---------- 從別處跳到某個族群的明細 ---------- */
+function focusGroup(name) {
+  var block = document.getElementById(state.blockId[name]);
+  if (!block) return;
+  // 明細面板本身若是收合的，先展開，否則捲過去會什麼都看不到
+  var panel = block.closest('.panel');
+  if (panel) panel.classList.remove('collapsed');
+  block.classList.remove('collapsed');
+  // 表頭是 sticky 且高度隨寬度變化很大（桌機 54px、390px 時 138px，因為市場摘要
+  // 會換行），固定的 scroll-margin 蓋不住，所以在捲動前讀當下的實際高度。
+  var bar = document.querySelector('.topbar');
+  document.documentElement.style.setProperty(
+    '--topbar-h', (bar ? bar.offsetHeight : 56) + 'px');
+  block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  block.classList.remove('flash');
+  void block.offsetWidth;                    // 重觸發動畫（連點同一個族群時）
+  block.classList.add('flash');
+  setTimeout(function () { block.classList.remove('flash'); }, 1500);
+}
+
 /* ---------- 族群成分股明細 ---------- */
 function moverLine(label, list) {
   var div = el('div');
@@ -369,8 +395,11 @@ function renderDetail() {
   var host = document.getElementById('detail');
   host.textContent = '';
 
-  state.data.groups.forEach(function (g) {
+  state.blockId = {};
+  state.data.groups.forEach(function (g, i) {
     var block = el('div', 'group-block' + (state.allExpanded ? '' : ' collapsed'));
+    block.id = 'g-' + i;
+    state.blockId[g.name] = block.id;
 
     var title = el('div', 'group-title');
     title.appendChild(el('span', 'caret'));

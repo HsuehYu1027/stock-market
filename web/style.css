@@ -143,6 +143,9 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); 
 .col-rank { width: 40px; color: var(--muted); }
 .col-name { font-weight: 600; }
 .sortable { cursor: pointer; }
+/* 可跳轉的族群名稱：底線提示可點，顏色留給漲跌用 */
+td.jump { cursor: pointer; text-decoration: underline dotted var(--muted); text-underline-offset: 3px; }
+td.jump:hover { color: var(--accent); text-decoration-color: var(--accent); }
 .sortable:hover, .sortable.active { color: var(--accent); }
 .sortable.active::after { content: " ▼"; font-size: 9px; }
 
@@ -173,6 +176,7 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); 
 .chart .cat-label { fill: var(--ink); font-size: 12px; }
 .chart .median-tick { stroke: var(--ink); stroke-width: 2; }
 .chart .hit { fill: transparent; cursor: pointer; }
+.chart g.jump { cursor: pointer; }
 .chart .row:hover .hit { fill: color-mix(in srgb, var(--accent) 7%, transparent); }
 
 .tooltip {
@@ -185,7 +189,22 @@ tbody tr:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); 
 .tooltip b { font-variant-numeric: tabular-nums; }
 
 /* ---------- 族群明細 ---------- */
-.group-block { border-top: 1px solid var(--line); }
+.group-block {
+  border-top: 1px solid var(--line);
+  /* 表頭是 sticky，不設這個的話跳過來時族群標題會被表頭蓋住。
+     --topbar-h 由 focusGroup() 在捲動前寫入當下的實際表頭高度，
+     因為表頭高度隨螢幕寬度變化很大（桌機 54px、390px 時 138px）。 */
+  scroll-margin-top: calc(var(--topbar-h, 56px) + 12px);
+}
+/* 跳轉後短暫高亮，讓眼睛知道停在哪一列 */
+@keyframes flash-in {
+  from { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+  to   { background: transparent; }
+}
+.group-block.flash { animation: flash-in 1.5s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .group-block.flash { animation-duration: .01s; }
+}
 .group-block:first-child { border-top: none; }
 .group-title {
   padding: 11px 2px; cursor: pointer; display: flex;
