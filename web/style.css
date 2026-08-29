@@ -107,6 +107,19 @@ main { max-width: 1200px; margin: 0 auto; padding: 18px 20px 0; }
 }
 .ghost:hover { background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
 
+/* 面板內部的控制列（目前用於個股表現排名的漲跌切換與成交值門檻） */
+.panel-controls {
+  display: flex; flex-wrap: wrap; gap: 10px 14px;
+  align-items: center; margin: 0 0 12px;
+}
+.thr { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.thr select {
+  font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  cursor: pointer;
+}
+.note.inline { margin: 0; }
+
 /* ---------- 面板 ---------- */
 .panel {
   background: var(--panel); border: 1px solid var(--line);
@@ -250,13 +263,15 @@ footer {
 
   /* 名稱欄固定在左側，捲動時仍看得到是哪一檔 */
   #ranking-table td:nth-child(3), #ranking-table th:nth-child(3),
-  #group-table  td:nth-child(2), #group-table  th:nth-child(2),
-  #search-table td:nth-child(2), #search-table th:nth-child(2) {
+  #movers-table  td:nth-child(3), #movers-table  th:nth-child(3),
+  #group-table   td:nth-child(2), #group-table   th:nth-child(2),
+  #search-table  td:nth-child(2), #search-table  th:nth-child(2) {
     position: sticky; left: 0; z-index: 1;
     background: var(--panel);
     box-shadow: 1px 0 0 var(--line);
   }
-  tbody tr:hover td:nth-child(2) { background: var(--panel); }
+  tbody tr:hover td:nth-child(2),
+  tbody tr:hover td:nth-child(3) { background: var(--panel); }
 
   .chart .cat-label { font-size: 11px; }
   .controls { gap: 8px; }

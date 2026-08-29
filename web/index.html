@@ -48,9 +48,9 @@
       <div class="table-scroll">
         <table id="search-table">
           <thead><tr>
-            <th>代號</th><th class="col-name">名稱</th><th>市場</th>
+            <th>代號</th><th class="col-name">名稱</th><th class="opt">市場</th>
             <th class="num">收盤</th><th class="num">漲跌幅</th>
-            <th class="num">成交值(億)</th><th>所屬族群</th>
+            <th class="num">成交張數</th><th class="num">成交值(億)</th><th>所屬族群</th>
           </tr></thead>
           <tbody></tbody>
         </table>
@@ -104,6 +104,45 @@
   </section>
 
   <section class="panel">
+    <h2 class="panel-head" data-toggle="movers">
+      <span class="caret"></span>個股表現排名
+      <small>依漲跌幅 — 成交值門檻用來濾掉買不到也賣不掉的個股</small>
+    </h2>
+    <div class="panel-body" id="movers">
+      <div class="panel-controls">
+        <div class="seg" role="group" aria-label="漲跌方向">
+          <button class="seg-btn active" data-dir="up">漲幅</button>
+          <button class="seg-btn" data-dir="down">跌幅</button>
+        </div>
+        <label class="thr">
+          成交值門檻
+          <select id="min-turnover">
+            <option value="0">全部</option>
+            <option value="50000000" selected>≥ 5 千萬</option>
+            <option value="100000000">≥ 1 億</option>
+            <option value="300000000">≥ 3 億</option>
+          </select>
+        </label>
+        <span id="mover-count" class="note inline"></span>
+      </div>
+      <div class="table-scroll">
+        <table id="movers-table">
+          <thead>
+            <tr>
+              <th class="col-rank">#</th><th>代號</th><th class="col-name">名稱</th>
+              <th class="opt">市場</th><th class="num">收盤</th><th class="num opt">漲跌</th>
+              <th class="num">漲跌幅</th><th class="num">成交張數</th>
+              <th class="num">成交值(億)</th><th>所屬族群</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <button id="movers-more" class="ghost">顯示前 100 名</button>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2 class="panel-head" data-toggle="ranking">
       <span class="caret"></span>成交值排名
       <small>依成交金額，上市上櫃合併</small>
@@ -115,7 +154,7 @@
             <tr>
               <th class="col-rank">#</th><th>代號</th><th class="col-name">名稱</th>
               <th class="opt">市場</th><th class="num">收盤</th><th class="num opt">漲跌</th>
-              <th class="num">漲跌幅</th><th class="num">成交值(億)</th><th class="num opt">成交張數</th>
+              <th class="num">漲跌幅</th><th class="num">成交張數</th><th class="num">成交值(億)</th>
             </tr>
           </thead>
           <tbody></tbody>

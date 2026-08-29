@@ -17,6 +17,9 @@ var state = {
   groupSort: 'equal_weight_pct',
   rankingLimit: 50,
   market: 'all',      // 'all' | '0' | '1'
+  moverDir: 'up',     // 個股表現排名：'up' 漲幅榜 / 'down' 跌幅榜
+  minTurnover: 5e7,   // 個股表現排名的成交值門檻，濾掉買不到也賣不掉的個股
+  moverLimit: 50,
   query: '',
   groupOf: {},        // 代號 -> [族群名]，由 groups[].constituents 反查建立
   blockId: {},        // 族群名 -> 明細區塊的 DOM id（族群名含中文，用索引當 id 較安全）
@@ -302,13 +305,57 @@ function renderRanking() {
     tr.appendChild(td((s[F.CHANGE] >= 0 ? '+' : '') + s[F.CHANGE].toFixed(2),
                       'num opt ' + tone(s[F.CHANGE])));
     tr.appendChild(td(pct(s[F.PCT]), 'num ' + tone(s[F.PCT])));
+    tr.appendChild(td(num(Math.round(s[F.VOL] / 1000)), 'num'));
     tr.appendChild(td(oku(s[F.TURNOVER]), 'num'));
-    tr.appendChild(td(num(Math.round(s[F.VOL] / 1000)), 'num opt'));
     tbody.appendChild(tr);
   });
 
   var total = Math.min(RANK_CAP, rows.length);
   var btn = document.getElementById('show-more');
+  if (shown >= total) btn.classList.add('hidden');
+  else {
+    btn.classList.remove('hidden');
+    btn.textContent = '顯示前 ' + total + ' 名';
+  }
+}
+
+/* ---------- 個股表現排名 ----------
+   直接依漲跌幅排序會讓全天只成交幾十張的個股佔據前排 —— 那種股票漲停只要
+   幾萬塊，買不到也賣不掉。成交值門檻就是用來擋掉這種雜訊的，預設 5 千萬。
+   表中同時列出成交張數與成交值，門檻擋掉什麼、留下什麼都看得見。 */
+function renderMovers() {
+  var tbody = document.querySelector('#movers-table tbody');
+  tbody.textContent = '';
+
+  var pool = filteredStocks().filter(function (s) {
+    return s[F.PCT] !== null && s[F.TURNOVER] >= state.minTurnover;
+  });
+  var up = state.moverDir === 'up';
+  pool.sort(function (a, b) { return up ? b[F.PCT] - a[F.PCT] : a[F.PCT] - b[F.PCT]; });
+
+  var shown = Math.min(state.moverLimit, RANK_CAP, pool.length);
+  pool.slice(0, shown).forEach(function (s, i) {
+    var tr = document.createElement('tr');
+    tr.appendChild(td(String(i + 1), 'col-rank'));
+    tr.appendChild(td(s[F.CODE]));
+    tr.appendChild(td(s[F.NAME], 'col-name'));
+    tr.appendChild(td(MARKETS[s[F.MARKET]] || '—', 'opt'));
+    tr.appendChild(td(num(s[F.CLOSE], 2), 'num'));
+    tr.appendChild(td((s[F.CHANGE] >= 0 ? '+' : '') + s[F.CHANGE].toFixed(2),
+                      'num opt ' + tone(s[F.CHANGE])));
+    tr.appendChild(td(pct(s[F.PCT]), 'num ' + tone(s[F.PCT])));
+    tr.appendChild(td(num(Math.round(s[F.VOL] / 1000)), 'num'));
+    tr.appendChild(td(oku(s[F.TURNOVER]), 'num'));
+    var groups = state.groupOf[s[F.CODE]];
+    tr.appendChild(td(groups ? groups.join('、') : '—', groups ? 'tags' : 'flat'));
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('mover-count').textContent =
+    '符合門檻 ' + num(pool.length) + ' 檔';
+
+  var total = Math.min(RANK_CAP, pool.length);
+  var btn = document.getElementById('movers-more');
   if (shown >= total) btn.classList.add('hidden');
   else {
     btn.classList.remove('hidden');
@@ -346,9 +393,10 @@ function renderSearch() {
     var tr = document.createElement('tr');
     tr.appendChild(td(s[F.CODE]));
     tr.appendChild(td(s[F.NAME], 'col-name'));
-    tr.appendChild(td(MARKETS[s[F.MARKET]] || '—'));
+    tr.appendChild(td(MARKETS[s[F.MARKET]] || '—', 'opt'));
     tr.appendChild(td(num(s[F.CLOSE], 2), 'num'));
     tr.appendChild(td(pct(s[F.PCT]), 'num ' + tone(s[F.PCT])));
+    tr.appendChild(td(num(Math.round(s[F.VOL] / 1000)), 'num'));
     tr.appendChild(td(oku(s[F.TURNOVER]), 'num'));
     var groups = state.groupOf[s[F.CODE]];
     tr.appendChild(td(groups ? groups.join('、') : '—', groups ? 'tags' : 'flat'));
@@ -419,7 +467,7 @@ function renderDetail() {
     var table = document.createElement('table');
     var thead = document.createElement('thead');
     var hr = document.createElement('tr');
-    ['代號', '名稱', '市場', '收盤', '漲跌', '漲跌幅', '成交值(億)'].forEach(function (h, i) {
+    ['代號', '名稱', '市場', '收盤', '漲跌', '漲跌幅', '成交張數', '成交值(億)'].forEach(function (h, i) {
       var th = document.createElement('th');
       th.textContent = h;
       th.className = (i >= 3 ? 'num' : '') + (h === '市場' || h === '漲跌' ? ' opt' : '');
@@ -439,6 +487,7 @@ function renderDetail() {
         tr.appendChild(td(num(q.close, 2), 'num'));
         tr.appendChild(td((q.change >= 0 ? '+' : '') + q.change.toFixed(2), 'num opt ' + tone(q.change)));
         tr.appendChild(td(pct(q.pct), 'num ' + tone(q.pct)));
+        tr.appendChild(td(num(Math.round(q.volume_shares / 1000)), 'num'));
         tr.appendChild(td(oku(q.turnover), 'num'));
         tb.appendChild(tr);
       });
@@ -508,6 +557,7 @@ function renderAll() {
   renderPerfChart();
   renderShareChart();
   renderGroups();
+  renderMovers();
   renderRanking();
   renderDetail();
   renderSearch();
@@ -523,6 +573,7 @@ function loadDate(date) {
     .then(function (data) {
       state.data = data;
       state.rankingLimit = 50;
+      state.moverLimit = 50;
       renderAll();
     });
 }
@@ -567,16 +618,46 @@ function wire() {
     search.value = ''; state.query = ''; renderSearch(); search.focus();
   });
 
-  document.querySelectorAll('.seg-btn').forEach(function (btn) {
+  // 選擇器限縮在 .controls 之內：個股表現排名的漲跌切換鈕也用 .seg-btn，
+  // 不限縮的話兩組按鈕會互相把對方的 active 狀態清掉
+  document.querySelectorAll('.controls .seg-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('.seg-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.controls .seg-btn').forEach(function (b) {
+        b.classList.remove('active');
+      });
       btn.classList.add('active');
       state.market = btn.dataset.market;
       state.rankingLimit = 50;
+      state.moverLimit = 50;
       renderRanking();
+      renderMovers();
       renderDetail();
       renderSearch();
     });
+  });
+
+  // 個股表現排名：漲幅／跌幅切換
+  document.querySelectorAll('#movers .seg-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('#movers .seg-btn').forEach(function (b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      state.moverDir = btn.dataset.dir;
+      state.moverLimit = 50;
+      renderMovers();
+    });
+  });
+
+  document.getElementById('min-turnover').addEventListener('change', function () {
+    state.minTurnover = Number(this.value);
+    state.moverLimit = 50;
+    renderMovers();
+  });
+
+  document.getElementById('movers-more').addEventListener('click', function () {
+    state.moverLimit = Infinity;
+    renderMovers();
   });
 
   document.getElementById('toggle-all').addEventListener('click', function () {
